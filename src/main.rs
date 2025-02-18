@@ -1,4 +1,4 @@
-use axum::{routing, Json, Router};
+use axum::{http::StatusCode, routing, Json, Router};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -11,11 +11,19 @@ struct Task {
     due_date: u32,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct CreateTaskInput {
+    title: String,
+    completed: Option<bool>,
+    #[serde(rename = "dueDate")]
+    due_date: Option<u32>,
+}
+
 #[tokio::main]
 async fn main() {
     let app = Router::new()
         .route("/", routing::get(index))
-        .route("/tasks", routing::get(list_tasks));
+        .route("/tasks", routing::get(list_tasks).post(create_task));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
 
@@ -37,4 +45,17 @@ async fn list_tasks() -> Json<Vec<Task>> {
     }];
 
     Json(todos)
+}
+
+async fn create_task(Json(payload): Json<CreateTaskInput>) -> StatusCode {
+    let task = Task {
+        title: payload.title,
+        id: Uuid::new_v4().to_string(),
+        completed: payload.completed.unwrap_or(false),
+        due_date: payload.due_date.unwrap_or(0),
+    };
+
+    println!("creating task : {} {}", task.id, task.title);
+
+    return StatusCode::CREATED;
 }
