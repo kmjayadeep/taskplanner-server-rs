@@ -2,7 +2,6 @@ use axum::{extract::State, http::StatusCode, routing, Json, Router};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
-use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Task {
@@ -52,15 +51,18 @@ async fn index() -> &'static str {
     "Hello world"
 }
 
-async fn list_tasks() -> Json<Vec<Task>> {
-    let todos = vec![Task {
-        id: Uuid::new_v4().to_string(),
-        title: String::from("test"),
-        completed: false,
-        due_date: None,
-    }];
+async fn list_tasks(State(state): State<AppState>) -> Json<Vec<Task>> {
+    let tasks = sqlx::query_as!(Task, "SELECT * from tasks")
+        .fetch_all(&state.db_pool)
+        .await;
 
-    Json(todos)
+    match tasks {
+        Ok(tasks) => Json(tasks),
+        Err(err) => {
+            println!("Unable to fetch tasks : error {}", err);
+            Json(vec![])
+        }
+    }
 }
 
 async fn create_task(
