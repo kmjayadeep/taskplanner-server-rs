@@ -2,10 +2,12 @@ use axum::{extract::State, http::StatusCode, routing, Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
+use utoipa::{OpenApi, ToSchema};
+use utoipa_swagger_ui::SwaggerUi;
 
 const MAX_TASKS: i32 = 100;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 struct Task {
     id: String,
     title: String,
@@ -27,6 +29,10 @@ struct AppState {
     db_pool: Pool<Postgres>,
 }
 
+#[derive(OpenApi)]
+#[openapi(paths(list_tasks))]
+struct ApiDoc;
+
 #[tokio::main]
 async fn main() {
     let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -38,6 +44,7 @@ async fn main() {
     let state = AppState { db_pool: pool };
 
     let app = Router::new()
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/", routing::get(index))
         .route("/tasks", routing::get(list_tasks).post(create_task))
         .with_state(state);
@@ -53,6 +60,13 @@ async fn index() -> &'static str {
     "Task Planner v0.1"
 }
 
+#[utoipa::path(
+    get,
+    path = "/tasks",
+    responses(
+        (status = 200, description = "List available tasks", body = Vec<Task>),
+    )
+)]
 async fn list_tasks(State(state): State<AppState>) -> Json<Vec<Task>> {
     let tasks = sqlx::query_as!(Task, "SELECT * from tasks")
         .fetch_all(&state.db_pool)
