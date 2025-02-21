@@ -16,7 +16,7 @@ struct Task {
     due_date: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 struct CreateTaskInput {
     title: String,
     completed: Option<bool>,
@@ -30,7 +30,7 @@ struct AppState {
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(list_tasks))]
+#[openapi(paths(list_tasks, create_task))]
 struct ApiDoc;
 
 #[tokio::main]
@@ -81,6 +81,15 @@ async fn list_tasks(State(state): State<AppState>) -> Json<Vec<Task>> {
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/tasks",
+    responses(
+        (status = CREATED, description = "Task created"),
+        (status = BAD_REQUEST, description = "Invalid input")
+    ),
+    request_body = CreateTaskInput
+)]
 async fn create_task(
     State(state): State<AppState>,
     Json(payload): Json<CreateTaskInput>,
@@ -97,8 +106,6 @@ async fn create_task(
         .await
         .unwrap()
         .unwrap();
-
-    println!("count is {}", count);
 
     // Protection against flooding the DB
     if count >= MAX_TASKS.into() {
