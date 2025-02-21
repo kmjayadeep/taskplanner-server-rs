@@ -3,6 +3,8 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 
+const MAX_TASKS: i32 = 100;
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Task {
     id: String,
@@ -48,7 +50,7 @@ async fn main() {
 }
 
 async fn index() -> &'static str {
-    "Hello world"
+    "Task Planner v0.1"
 }
 
 async fn list_tasks(State(state): State<AppState>) -> Json<Vec<Task>> {
@@ -75,6 +77,19 @@ async fn create_task(
         completed: payload.completed.unwrap_or(false),
         due_date: payload.due_date,
     };
+
+    let count = sqlx::query_scalar!("SELECT count(*) as count from tasks")
+        .fetch_one(&state.db_pool)
+        .await
+        .unwrap()
+        .unwrap();
+
+    println!("count is {}", count);
+
+    // Protection against flooding the DB
+    if count >= MAX_TASKS.into() {
+        return StatusCode::BAD_REQUEST;
+    }
 
     let task = sqlx::query_as!(
         Task,
