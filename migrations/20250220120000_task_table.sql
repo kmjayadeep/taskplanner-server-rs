@@ -2,6 +2,6 @@ CREATE TABLE tasks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     completed BOOLEAN NOT NULL DEFAULT false,
-    due_date INT NOT NULL DEFAULT 0
+    due_date TIMESTAMP
 );
 

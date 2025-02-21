@@ -1,4 +1,5 @@
 use axum::{extract::State, http::StatusCode, routing, Json, Router};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
@@ -9,7 +10,7 @@ struct Task {
     title: String,
     completed: bool,
     #[serde(rename = "dueDate")]
-    due_date: i32,
+    due_date: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,7 +18,7 @@ struct CreateTaskInput {
     title: String,
     completed: Option<bool>,
     #[serde(rename = "dueDate")]
-    due_date: Option<i32>,
+    due_date: Option<NaiveDateTime>,
 }
 
 #[derive(Clone)]
@@ -56,7 +57,7 @@ async fn list_tasks() -> Json<Vec<Task>> {
         id: Uuid::new_v4().to_string(),
         title: String::from("test"),
         completed: false,
-        due_date: 0,
+        due_date: None,
     }];
 
     Json(todos)
@@ -70,7 +71,7 @@ async fn create_task(
         id: "".to_string(),
         title: payload.title,
         completed: payload.completed.unwrap_or(false),
-        due_date: payload.due_date.unwrap_or(0),
+        due_date: payload.due_date,
     };
 
     let task = sqlx::query_as!(
