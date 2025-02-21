@@ -1,5 +1,5 @@
 use axum::{extract::State, http::StatusCode, routing, Json, Router};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 
@@ -11,7 +11,7 @@ struct Task {
     title: String,
     completed: bool,
     #[serde(rename = "dueDate")]
-    due_date: Option<NaiveDateTime>,
+    due_date: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,7 +19,7 @@ struct CreateTaskInput {
     title: String,
     completed: Option<bool>,
     #[serde(rename = "dueDate")]
-    due_date: Option<NaiveDateTime>,
+    due_date: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone)]
