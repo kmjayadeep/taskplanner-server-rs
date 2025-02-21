@@ -1,0 +1,9 @@
+services:
+  taskplanner-server:
+    build:
+      context: .
+    environment:
+      DATABASE_URL:
+    ports:
+      - '8000:8000'
+    restart: unless-stopped
