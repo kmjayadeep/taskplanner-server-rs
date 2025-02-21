@@ -57,7 +57,7 @@ async fn main() {
 }
 
 async fn index() -> &'static str {
-    "Task Planner v0.1"
+    "Task Planner v0.1.0"
 }
 
 #[utoipa::path(
