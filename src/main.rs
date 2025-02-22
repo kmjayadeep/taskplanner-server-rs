@@ -1,4 +1,4 @@
-use axum::{extract::State, http::StatusCode, routing, Json, Router};
+use axum::{extract::Path, extract::State, http::StatusCode, routing, Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
@@ -30,7 +30,7 @@ struct AppState {
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(list_tasks, create_task))]
+#[openapi(paths(list_tasks, create_task, delete_task))]
 struct ApiDoc;
 
 #[tokio::main]
@@ -46,6 +46,7 @@ async fn main() {
     let app = Router::new()
         .merge(SwaggerUi::new("/").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/tasks", routing::get(list_tasks).post(create_task))
+        .route("/tasks/{id}", routing::delete(delete_task))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
@@ -118,5 +119,37 @@ async fn create_task(
     match task {
         Ok(_task) => StatusCode::CREATED,
         Err(_err) => StatusCode::BAD_REQUEST,
+    }
+}
+
+#[utoipa::path(
+    delete,
+    path = "/tasks/{id}",
+    responses(
+        (status = OK, description = "Task deleted"),
+        (status = BAD_REQUEST, description = "Invalid input")
+    ),
+    params(
+        ("id" = String, Path, description = "Task ID to delete"),
+    )
+)]
+async fn delete_task(State(state): State<AppState>, Path(id): Path<String>) -> StatusCode {
+    let taskid = uuid::Uuid::parse_str(&id);
+
+    if let Err(_) = taskid {
+        return StatusCode::BAD_REQUEST;
+    }
+
+    let result = sqlx::query("DELETE FROM tasks where id=$1")
+        .bind(taskid.unwrap())
+        .execute(&state.db_pool)
+        .await;
+
+    match result {
+        Ok(_) => StatusCode::OK,
+        Err(_err) => {
+            println!("Unable to delete record {}", _err);
+            StatusCode::BAD_REQUEST
+        }
     }
 }
