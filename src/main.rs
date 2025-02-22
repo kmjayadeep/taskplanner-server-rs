@@ -44,8 +44,7 @@ async fn main() {
     let state = AppState { db_pool: pool };
 
     let app = Router::new()
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .route("/", routing::get(index))
+        .merge(SwaggerUi::new("/").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/tasks", routing::get(list_tasks).post(create_task))
         .with_state(state);
 
@@ -54,10 +53,6 @@ async fn main() {
     println!("Listening on {}", listener.local_addr().unwrap());
 
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn index() -> &'static str {
-    "Task Planner v0.1.0"
 }
 
 #[utoipa::path(
