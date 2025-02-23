@@ -1,4 +1,6 @@
-use axum::{extract::Path, extract::State, http::StatusCode, routing, Json, Router};
+use axum::{
+    extract::Path, extract::State, http::StatusCode, response::IntoResponse, routing, Json, Router,
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
@@ -63,17 +65,19 @@ async fn main() {
         (status = 200, description = "List available tasks", body = Vec<Task>),
     )
 )]
-async fn list_tasks(State(state): State<AppState>) -> Json<Vec<Task>> {
+async fn list_tasks(State(state): State<AppState>) -> impl IntoResponse {
     let tasks = sqlx::query_as!(Task, "SELECT * from tasks")
         .fetch_all(&state.db_pool)
-        .await;
+        .await
+        .map(Json);
 
     match tasks {
-        Ok(tasks) => Json(tasks),
-        Err(err) => {
-            println!("Unable to fetch tasks : error {}", err);
-            Json(vec![])
-        }
+        Ok(tasks) => tasks.into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Internal server error: {}", err),
+        )
+            .into_response(),
     }
 }
 
