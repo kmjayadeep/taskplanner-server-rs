@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE Tasks set title=$1, completed=$2, due_date=$3 WHERE id=$4 RETURNING *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "completed",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "due_date",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "25ad7972ddb48a94d608a5b6098c3c8a79017b09c8a87b6cd2ded8fc702b2966"
+}
