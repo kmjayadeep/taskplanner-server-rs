@@ -93,7 +93,7 @@ async fn list_tasks(State(state): State<AppState>) -> impl IntoResponse {
 async fn create_task(
     State(state): State<AppState>,
     Json(payload): Json<CreateTaskInput>,
-) -> StatusCode {
+) -> impl IntoResponse {
     let task = Task {
         id: "".to_string(),
         title: payload.title,
@@ -103,13 +103,15 @@ async fn create_task(
 
     let count = sqlx::query_scalar!("SELECT count(*) as count from tasks")
         .fetch_one(&state.db_pool)
-        .await
-        .unwrap()
-        .unwrap();
+        .await;
 
-    // Protection against flooding the DB
-    if count >= MAX_TASKS.into() {
-        return StatusCode::BAD_REQUEST;
+    match count {
+        Err(_) => return StatusCode::BAD_REQUEST,
+        Ok(count) => {
+            if count.unwrap_or(MAX_TASKS.into()) >= MAX_TASKS.into() {
+                return StatusCode::BAD_REQUEST;
+            }
+        }
     }
 
     let task = sqlx::query_as!(
