@@ -32,7 +32,7 @@ struct AppState {
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(list_tasks, create_task, delete_task))]
+#[openapi(paths(list_tasks, create_task, delete_task, update_task))]
 struct ApiDoc;
 
 #[tokio::main]
@@ -48,7 +48,7 @@ async fn main() {
     let app = Router::new()
         .merge(SwaggerUi::new("/").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/tasks", routing::get(list_tasks).post(create_task))
-        .route("/tasks/{id}", routing::delete(delete_task))
+        .route("/tasks/{id}", routing::delete(delete_task).put(update_task))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
@@ -157,5 +157,61 @@ async fn delete_task(State(state): State<AppState>, Path(id): Path<String>) -> S
             println!("Unable to delete record {}", _err);
             StatusCode::BAD_REQUEST
         }
+    }
+}
+
+#[utoipa::path(
+    put,
+    path = "/tasks/{id}",
+    responses(
+        (status = OK, description = "Task updated"),
+        (status = BAD_REQUEST, description = "Invalid input")
+    ),
+    params(
+        ("id" = String, Path, description = "Task ID to update"),
+    ),
+    request_body = CreateTaskInput
+)]
+async fn update_task(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<CreateTaskInput>,
+) -> impl IntoResponse {
+    let taskid = uuid::Uuid::parse_str(&id);
+    if let Err(_) = taskid {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+    let taskid = taskid.unwrap();
+
+    let query_result = sqlx::query_as!(Task, "SELECT * FROM Tasks WHERE id = $1", taskid)
+        .fetch_one(&state.db_pool)
+        .await;
+
+    if let Err(_) = query_result {
+        return (
+            StatusCode::BAD_REQUEST,
+            format!("Invalid task id {}", taskid)
+        ).into_response();
+    }
+
+    let task = Task {
+        id: "".to_string(),
+        title: payload.title,
+        completed: payload.completed.unwrap_or(false),
+        due_date: payload.due_date,
+    };
+
+    let query_result = sqlx::query_as!(
+        Task,
+        "UPDATE Tasks set title=$1, completed=$2, due_date=$3 WHERE id=$4 RETURNING *",
+        task.title,
+        task.completed,
+        task.due_date,
+        taskid,
+    ).fetch_one(&state.db_pool).await.map(Json);
+
+    match query_result {
+        Ok(task) => task.into_response(),
+        Err(_err) => StatusCode::BAD_REQUEST.into_response()
     }
 }
