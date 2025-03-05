@@ -2,6 +2,7 @@ mod handler;
 mod model;
 use axum::{routing, Router};
 use sqlx::{Pool, Postgres};
+use tower_http::cors::{Any, CorsLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -25,12 +26,18 @@ async fn main() {
         .await
         .expect("Unable to connect to DB");
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any) // Allow requests from any origin
+        .allow_methods(Any) // Allow all HTTP methods
+        .allow_headers(Any); // Allow all headers
+
     let state = AppState { db_pool: pool };
 
     let app = Router::new()
         .merge(SwaggerUi::new("/").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/tasks", routing::get(list_tasks).post(create_task))
         .route("/tasks/{id}", routing::delete(delete_task).put(update_task))
+        .layer(cors)
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
